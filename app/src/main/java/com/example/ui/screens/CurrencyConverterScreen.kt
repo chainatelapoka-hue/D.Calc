@@ -262,6 +262,26 @@ fun CurrencyConverterScreen(
             }
         }
 
+        // 1-YEAR RATE HISTORY CHART
+        val rateHistory by viewModel.rateHistory.collectAsState()
+        val historyLoading by viewModel.rateHistoryLoading.collectAsState()
+        LaunchedEffect(currencyFrom, currencyTo) {
+            viewModel.loadRateHistory(currencyFrom, currencyTo)
+        }
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = NexoraSecondaryBg,
+            border = androidx.compose.foundation.BorderStroke(1.dp, NexoraBorder),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                com.example.ui.components.RateHistoryChart(
+                    points = rateHistory,
+                    loading = historyLoading
+                )
+            }
+        }
+
         // USER CUSTOM EXCHANGE RATE CARD
         Surface(
             shape = RoundedCornerShape(16.dp),

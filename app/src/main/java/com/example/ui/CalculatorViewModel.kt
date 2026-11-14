@@ -340,6 +340,24 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    // 1-year rate history for the chart
+    private val _rateHistory = MutableStateFlow<List<Pair<Long, Double>>>(emptyList())
+    val rateHistory: StateFlow<List<Pair<Long, Double>>> = _rateHistory.asStateFlow()
+
+    private val _rateHistoryLoading = MutableStateFlow(false)
+    val rateHistoryLoading: StateFlow<Boolean> = _rateHistoryLoading.asStateFlow()
+
+    private var rateHistoryJob: kotlinx.coroutines.Job? = null
+
+    fun loadRateHistory(from: String, to: String) {
+        rateHistoryJob?.cancel()
+        rateHistoryJob = viewModelScope.launch {
+            _rateHistoryLoading.value = true
+            _rateHistory.value = com.example.data.history.RateHistoryFetcher.fetchOneYear(from, to)
+            _rateHistoryLoading.value = false
+        }
+    }
+
     // Large number converter
     fun setLargeNumberInput(input: String) {
         _largeNumberInput.value = input
