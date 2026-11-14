@@ -212,14 +212,28 @@ object ReceiptImageHelper {
                     false
                 }
             } else {
-                // On pre-Q without legacy write permission, save to app cache and offer share/save
-                val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "DCalc")
+                val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                    context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val baseDir = if (granted) {
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                } else {
+                    // No permission yet: fall back to the app's own folder
+                    context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+                }
+                val dir = File(baseDir, "DCalc")
                 if (!dir.exists()) dir.mkdirs()
                 val file = File(dir, fileName)
                 FileOutputStream(file).use { out ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                 }
-                Toast.makeText(context, "Screenshot saved: ${file.name}", Toast.LENGTH_SHORT).show()
+                if (granted) {
+                    // Make the image appear in Gallery right away
+                    android.media.MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf("image/png"), null)
+                    Toast.makeText(context, "Screenshot saved to Pictures/DCalc", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Permission নেই, অ্যাপের ফোল্ডারে সেভ হয়েছে", Toast.LENGTH_LONG).show()
+                }
                 true
             }
         } catch (e: Exception) {
