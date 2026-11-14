@@ -477,10 +477,11 @@ private fun UserManualSection() {
 
             ManualTopicCard(
                 icon = Icons.Default.Android,
-                title = "৬. Android APK ডাউনলোড ও ইনস্টল নির্দেশিকা",
+                title = "৬. GitHub ও AI Studio থেকে APK ডাউনলোড",
                 content = """
-                    • Google AI Studio-র উপরের ডানপাশের Settings / Export মেনুতে ক্লিক করে 'Generate APK' বা 'Download APK' সিলেক্ট করে সরাসরি ফোনে ডাউনলোড করুন।
-                    • প্রজেক্ট কোড ডাউনলোড করলে Android Studio দিয়েও 'app/build/outputs/apk/debug/app-debug.apk' বিল্ড করতে পারবেন।
+                    • GitHub থেকে ডাউনলোড: AI Studio থেকে 'Push to GitHub' করলে ২ মিনিটের মধ্যে GitHub Actions স্বয়ংক্রিয়ভাবে 'D-Calc.apk' তৈরি করে দেবে।
+                    • আপনার GitHub রিপোজিটরির 'Releases' (D. Calc APK Latest) অথবা 'Actions -> Build D. Calc APK -> Artifacts' থেকে সরাসরি D-Calc.apk ডাউনলোড করুন।
+                    • AI Studio থেকেও উপরের Settings / Export মেনুতে 'Generate APK' ব্যবহার করতে পারেন।
                     • ফোনে ইনস্টল করার সময় 'Allow from this source' চালু করে Install চাপুন।
                 """.trimIndent()
             )
@@ -544,10 +545,12 @@ private fun UserManualSection() {
 
             ManualTopicCard(
                 icon = Icons.Default.Android,
-                title = "6. Android APK Download & Installation",
+                title = "6. Download APK from GitHub & AI Studio",
                 content = """
-                    • In AI Studio, open the top-right Settings / Export menu and choose 'Generate APK' or 'Download APK' to save the installable APK file.
-                    • When installing on your Android phone, enable 'Allow from this source' in your device settings if prompted.
+                    • Download from GitHub: After using 'Push to GitHub' in AI Studio, GitHub Actions automatically builds 'D-Calc.apk' within ~2 minutes.
+                    • Open your GitHub repository's 'Releases' (D. Calc APK Latest) or 'Actions -> Build D. Calc APK -> Artifacts' to download D-Calc.apk directly.
+                    • You can also use 'Generate APK' in AI Studio's Settings / Export menu.
+                    • Enable 'Allow from this source' on your Android phone if prompted during installation.
                 """.trimIndent()
             )
         }
