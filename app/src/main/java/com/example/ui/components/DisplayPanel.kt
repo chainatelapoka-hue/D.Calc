@@ -56,6 +56,61 @@ fun DisplayPanel(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     var showReceiptDialog by remember { mutableStateOf(false) }
+    // Pending capture action waiting for the user's choice (with / without recent history)
+    var pendingAction by remember { mutableStateOf<String?>(null) }
+    val palette = LocalAppPalette.current
+
+    // Builds the slip image and performs the chosen action
+    fun runAction(action: String, includeHistory: Boolean) {
+        val exprText = expression.ifBlank { "0" }
+        val resText = finalResult ?: livePreviewResult ?: "0"
+        val dateStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
+        val breakdown = try {
+            NumberFormatter.getLargeNumberBreakdown(BigDecimal(resText.replace(",", "").trim()))
+        } catch (_: Exception) { null }
+        val history = if (includeHistory) recentHistory.take(3) else emptyList()
+
+        when (action) {
+            "SHARE_TEXT" -> {
+                val shareText = buildString {
+                    append("🧾 D. Calc Slip\n")
+                    append("Date: $dateStr\n")
+                    append("Calculation: $exprText\n")
+                    append("Result: = $resText\n")
+                    if (breakdown != null) append("In Words: ${breakdown.southAsianWords}\n")
+                    if (history.isNotEmpty()) {
+                        append("Recent:\n")
+                        history.forEachIndexed { i, h -> append("${i + 1}. ${h.expression} = ${h.result}\n") }
+                    }
+                    append("\nCalculated via D. Calc")
+                }
+                val sendIntent = Intent().apply {
+                    this.action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_TEXT, shareText)
+                    type = "text/plain"
+                }
+                context.startActivity(Intent.createChooser(sendIntent, "Share Calculation Slip"))
+                showReceiptDialog = false
+            }
+            else -> {
+                val bmp = ReceiptImageHelper.createCalculationBitmap(
+                    expression = exprText,
+                    result = resText,
+                    dateString = dateStr,
+                    southAsianWords = breakdown?.southAsianWords,
+                    internationalWords = breakdown?.internationalWords,
+                    palette = palette,
+                    history = history
+                )
+                if (action == "SHARE_IMAGE") {
+                    ReceiptImageHelper.shareReceiptImage(context, bmp)
+                    showReceiptDialog = false
+                } else {
+                    ReceiptImageHelper.saveScreenshotToGallery(context, bmp)
+                }
+            }
+        }
+    }
 
     // Determine current prominent display value
     val activeDisplayResult = finalResult ?: livePreviewResult
@@ -195,19 +250,7 @@ fun DisplayPanel(
                         val exprText = expression.ifBlank { "0" }
                         val resText = finalResult ?: livePreviewResult ?: "0"
                         if (exprText != "0" || resText != "0") {
-                            val dateStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
-                            val breakdown = try {
-                                NumberFormatter.getLargeNumberBreakdown(BigDecimal(resText.replace(",", "").trim()))
-                            } catch (_: Exception) { null }
-                            val bmp = ReceiptImageHelper.createCalculationBitmap(
-                                expression = exprText,
-                                result = resText,
-                                dateString = dateStr,
-                                southAsianWords = breakdown?.southAsianWords,
-                                internationalWords = breakdown?.internationalWords,
-                                palette = activePalette
-                            )
-                            ReceiptImageHelper.saveScreenshotToGallery(context, bmp)
+                            pendingAction = "QUICK_SAVE"
                         } else {
                             Toast.makeText(context, "Please perform a calculation first", Toast.LENGTH_SHORT).show()
                         }
@@ -324,6 +367,22 @@ fun DisplayPanel(
         }
     }
 
+    // Ask whether to include the on-screen recent history
+    pendingAction?.let { action ->
+        val isShare = action == "SHARE_IMAGE" || action == "SHARE_TEXT"
+        HistoryChoiceDialog(
+            title = if (isShare) "শেয়ার করবেন?" else "স্ক্রিনশট নেবেন?",
+            message = "রিসেন্ট হিস্ট্রি (শেষ ৩টি হিসাব) ছবি/টেক্সটে যোগ করবেন?",
+            withHistoryLabel = if (isShare) "হ্যাঁ, হিস্ট্রি সহ শেয়ার" else "হ্যাঁ, হিস্ট্রি সহ",
+            withoutHistoryLabel = if (isShare) "না, শুধু হিসাব শেয়ার" else "না, শুধু হিসাব",
+            onChoose = { includeHistory ->
+                pendingAction = null
+                runAction(action, includeHistory)
+            },
+            onDismiss = { pendingAction = null }
+        )
+    }
+
     // CALCULATION SLIP / SHARE / SCREENSHOT DIALOG
     if (showReceiptDialog) {
         val currentExpr = expression.ifBlank { "0" }
@@ -437,17 +496,7 @@ fun DisplayPanel(
                     ) {
                         // Save Screenshot to Gallery
                         Button(
-                            onClick = {
-                                val bmp = ReceiptImageHelper.createCalculationBitmap(
-                                    expression = currentExpr,
-                                    result = currentRes,
-                                    dateString = dateString,
-                                    southAsianWords = wordsBreakdown?.southAsianWords,
-                                    internationalWords = wordsBreakdown?.internationalWords,
-                                    palette = activePalette
-                                )
-                                ReceiptImageHelper.saveScreenshotToGallery(context, bmp)
-                            },
+                            onClick = { pendingAction = "RECEIPT_SAVE" },
                             colors = ButtonDefaults.buttonColors(containerColor = NexoraAccentBlue, contentColor = NexoraMainBg),
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp),
@@ -460,18 +509,7 @@ fun DisplayPanel(
 
                         // Share PNG Image via Apps
                         Button(
-                            onClick = {
-                                val bmp = ReceiptImageHelper.createCalculationBitmap(
-                                    expression = currentExpr,
-                                    result = currentRes,
-                                    dateString = dateString,
-                                    southAsianWords = wordsBreakdown?.southAsianWords,
-                                    internationalWords = wordsBreakdown?.internationalWords,
-                                    palette = activePalette
-                                )
-                                ReceiptImageHelper.shareReceiptImage(context, bmp)
-                                showReceiptDialog = false
-                            },
+                            onClick = { pendingAction = "SHARE_IMAGE" },
                             colors = ButtonDefaults.buttonColors(containerColor = NexoraPrimaryOp, contentColor = NexoraMainText),
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp),
@@ -489,26 +527,7 @@ fun DisplayPanel(
                     ) {
                         // Share Text via Apps
                         OutlinedButton(
-                            onClick = {
-                                val shareText = buildString {
-                                    append("🧾 D. Calc Slip\n")
-                                    append("Date: $dateString\n")
-                                    append("Calculation: $currentExpr\n")
-                                    append("Result: = $currentRes\n")
-                                    if (wordsBreakdown != null) {
-                                        append("In Words: ${wordsBreakdown.southAsianWords}\n")
-                                    }
-                                    append("\nCalculated via D. Calc")
-                                }
-                                val sendIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, shareText)
-                                    type = "text/plain"
-                                }
-                                val shareIntent = Intent.createChooser(sendIntent, "Share Calculation Slip")
-                                context.startActivity(shareIntent)
-                                showReceiptDialog = false
-                            },
+                            onClick = { pendingAction = "SHARE_TEXT" },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = NexoraAccentBlue),
                             border = androidx.compose.foundation.BorderStroke(1.dp, NexoraBorder),
                             shape = RoundedCornerShape(10.dp),
@@ -543,4 +562,26 @@ fun DisplayPanel(
             }
         }
     }
+}
+
+@Composable
+private fun HistoryChoiceDialog(
+    title: String,
+    message: String,
+    withHistoryLabel: String,
+    withoutHistoryLabel: String,
+    onChoose: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontWeight = FontWeight.Bold) },
+        text = { Text(message, fontSize = 13.sp) },
+        confirmButton = {
+            TextButton(onClick = { onChoose(true) }) { Text(withHistoryLabel) }
+        },
+        dismissButton = {
+            TextButton(onClick = { onChoose(false) }) { Text(withoutHistoryLabel) }
+        }
+    )
 }

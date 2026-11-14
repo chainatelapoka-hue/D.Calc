@@ -17,6 +17,7 @@ import android.text.TextPaint
 import android.widget.Toast
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.FileProvider
+import com.example.data.local.HistoryEntity
 import com.example.ui.theme.CustomThemePalette
 import java.io.File
 import java.io.FileOutputStream
@@ -29,7 +30,8 @@ object ReceiptImageHelper {
         dateString: String,
         southAsianWords: String?,
         internationalWords: String?,
-        palette: CustomThemePalette
+        palette: CustomThemePalette,
+        history: List<HistoryEntity> = emptyList()
     ): Bitmap {
         val width = 1080
         val padding = 64f
@@ -83,6 +85,21 @@ object ReceiptImageHelper {
                 .build()
         } else null
 
+        val historyLayout = if (history.isNotEmpty()) {
+            val historyText = history.take(3).mapIndexed { i, h -> "${i + 1}. ${h.expression} = ${h.result}" }
+                .joinToString("\n")
+            val historyPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = palette.secondaryText.toArgb()
+                textSize = 28f
+                typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+            }
+            StaticLayout.Builder
+                .obtain(historyText, 0, historyText.length, historyPaint, contentWidth)
+                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                .setLineSpacing(8f, 1.0f)
+                .build()
+        } else null
+
         val headerHeight = 140f
         val footerHeight = 90f
         val dividerSpacing = 48f
@@ -90,6 +107,7 @@ object ReceiptImageHelper {
             exprLayout.height + 28f +
             resultLayout.height + 36f +
             (if (wordsLayout != null) dividerSpacing + wordsLayout.height else 0f) +
+            (if (historyLayout != null) dividerSpacing + 44f + historyLayout.height else 0f) +
             footerHeight
 
         val height = (padding * 2 + cardContentHeight).toInt().coerceAtLeast(620)
@@ -178,6 +196,24 @@ object ReceiptImageHelper {
             canvas.save()
             canvas.translate(leftX, y)
             wordsLayout.draw(canvas)
+            canvas.restore()
+            y += wordsLayout.height + 20f
+        }
+
+        // Recent history (only when the user chose to include it)
+        if (historyLayout != null) {
+            canvas.drawLine(leftX, y, rightX, y, divPaint)
+            y += 28f
+            val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = palette.mutedText.toArgb()
+                textSize = 24f
+                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            }
+            canvas.drawText("RECENT", leftX, y + 24f, labelPaint)
+            y += 44f
+            canvas.save()
+            canvas.translate(leftX, y)
+            historyLayout.draw(canvas)
             canvas.restore()
         }
 
