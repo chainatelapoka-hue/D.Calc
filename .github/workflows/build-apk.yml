@@ -38,7 +38,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: wrapper
+          gradle-version: '9.3.1'
 
       - name: Run Unit Tests
         run: gradle :app:testDebugUnitTest --no-daemon
@@ -65,6 +65,7 @@ jobs:
             gh release upload latest D-Calc.apk --clobber
           else
             gh release create latest D-Calc.apk \
+              --target "${{ github.sha }}" \
               --title "D. Calc APK (Latest)" \
               --notes "Download **D-Calc.apk** below and install it on your Android device."
           fi
