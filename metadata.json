@@ -1,0 +1,6 @@
+{
+  "name": "D. Calc",
+  "description": "Premium native Android calculator with financial, scientific, business formulas, and live currency converter.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
