@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/ic_launcher_nexora"
-        android:gravity="center" />
-</layer-list>
+<!-- D. Calc app icon: the designed tile, inset to sit inside the adaptive-icon safe zone -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_app_icon"
+    android:inset="9dp" />
