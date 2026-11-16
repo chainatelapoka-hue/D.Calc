@@ -608,6 +608,8 @@ private fun ExchangeProfitTab(
     var sellingRateStr by remember { mutableStateOf("17.65") }
     var feePctStr by remember { mutableStateOf("0.5") }
     var flatFeeStr by remember { mutableStateOf("100") }
+    // false = RMB amount is entered (buy/sell math); true = BDT budget is entered (client pays taka)
+    var budgetMode by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val allRecords by viewModel.allBusinessRecords.collectAsState()
@@ -625,6 +627,16 @@ private fun ExchangeProfitTab(
         val flat = safeBigDecimal(flatFeeStr)
 
         BusinessMath.calculateCurrencyExchangeProfit(amt, buy, sell, feePct, flat)
+    }
+
+    val budgetResult = remember(amountStr, buyingRateStr, sellingRateStr, feePctStr, flatFeeStr) {
+        BusinessMath.calculateExchangeFromBdtBudget(
+            safeBigDecimal(amountStr),
+            safeBigDecimal(buyingRateStr),
+            safeBigDecimal(sellingRateStr),
+            safeBigDecimal(feePctStr),
+            safeBigDecimal(flatFeeStr)
+        )
     }
 
     Column(
@@ -672,6 +684,11 @@ private fun ExchangeProfitTab(
             fontWeight = FontWeight.Bold
         )
 
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ToolChip("RMB পরিমাণ দিয়ে", !budgetMode) { budgetMode = false }
+            ToolChip("টাকা দিয়ে (BDT)", budgetMode) { budgetMode = true }
+        }
+
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = NexoraSecondaryBg,
@@ -683,7 +700,7 @@ private fun ExchangeProfitTab(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 BizInputField(
-                    label = "Currency Amount (e.g. RMB or USD)",
+                    label = if (budgetMode) "ক্লায়েন্ট কত টাকা দিচ্ছে (BDT)" else "Currency Amount (e.g. RMB or USD)",
                     value = amountStr,
                     onValueChange = { amountStr = it }
                 )
@@ -738,6 +755,14 @@ private fun ExchangeProfitTab(
                     fontWeight = FontWeight.Bold
                 )
 
+                if (budgetMode) {
+                    ResultRow("ক্লায়েন্ট পাবে", "${NumberFormatter.formatWithCommas(budgetResult.rmbQuantity, formatStyle, 2)} RMB")
+                    ResultRow("প্রতি RMB-তে লাভ", "৳ ${budgetResult.profitPerUnit}")
+                    ResultRow("Gross Exchange Profit", "${NumberFormatter.formatWithCommas(budgetResult.grossProfit, formatStyle, 2)}")
+                    ResultRow("Transaction Fees Deducted", "- ${NumberFormatter.formatWithCommas(budgetResult.feeDeduction, formatStyle, 2)}", highlightColor = NexoraDanger)
+                    Divider(color = NexoraBorder, thickness = 1.dp)
+                    ResultRow("Net Exchange Profit", "${NumberFormatter.formatWithCommas(budgetResult.netProfit, formatStyle, 2)}", isHighlight = true, highlightColor = if (budgetResult.netProfit >= BigDecimal.ZERO) NexoraSuccess else NexoraDanger)
+                } else {
                 ResultRow("Exchange Rate Spread", "${result.spread} per unit")
                 ResultRow("Total Buying Cost", "${NumberFormatter.formatWithCommas(result.effectiveBuyingCost, formatStyle, 2)}")
                 ResultRow("Total Selling Revenue", "${NumberFormatter.formatWithCommas(result.effectiveSellingRevenue, formatStyle, 2)}")
@@ -750,6 +775,7 @@ private fun ExchangeProfitTab(
                 Divider(color = NexoraBorder, thickness = 1.dp)
 
                 ResultRow("Net Exchange Profit", "${NumberFormatter.formatWithCommas(result.netProfit, formatStyle, 2)}", isHighlight = true, highlightColor = if (result.netProfit >= BigDecimal.ZERO) NexoraSuccess else NexoraDanger)
+                }
             }
         }
 
@@ -795,7 +821,8 @@ private fun ExchangeProfitTab(
                                     Toast.makeText(context, "Please enter a title", Toast.LENGTH_SHORT).show()
                                     return@Button
                                 }
-                                val summary = "Amount: $amountStr | Net Profit: ${NumberFormatter.formatWithCommas(result.netProfit, formatStyle, 2)}"
+                                val activeNet = if (budgetMode) budgetResult.netProfit else result.netProfit
+                                val summary = "Amount: $amountStr | Net Profit: ${NumberFormatter.formatWithCommas(activeNet, formatStyle, 2)}"
                                 val json = JSONObject().apply {
                                     put("amount", amountStr)
                                     put("buyingRate", buyingRateStr)

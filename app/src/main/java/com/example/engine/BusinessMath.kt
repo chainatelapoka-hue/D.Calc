@@ -121,6 +121,44 @@ object BusinessMath {
         )
     }
 
+    data class ExchangeBudgetResult(
+        val rmbQuantity: BigDecimal,
+        val profitPerUnit: BigDecimal,
+        val grossProfit: BigDecimal,
+        val feeDeduction: BigDecimal,
+        val netProfit: BigDecimal
+    )
+
+    /**
+     * Client gives a BDT budget. RMB they receive = budget / selling rate.
+     * Gross profit = RMB received x (selling - buying), i.e. the same as
+     * budget x (selling - buying) / selling.
+     */
+    fun calculateExchangeFromBdtBudget(
+        budgetBdt: BigDecimal,
+        buyingRate: BigDecimal,
+        sellingRate: BigDecimal,
+        transactionFeePercent: BigDecimal,
+        flatFee: BigDecimal
+    ): ExchangeBudgetResult {
+        if (sellingRate <= BigDecimal.ZERO) {
+            return ExchangeBudgetResult(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)
+        }
+        val rmb = budgetBdt.divide(sellingRate, 2, RoundingMode.HALF_UP)
+        val spread = sellingRate.subtract(buyingRate, MC)
+        val gross = rmb.multiply(spread, MC)
+        val pctFee = budgetBdt.multiply(transactionFeePercent, MC).divide(BigDecimal(100), MC)
+        val totalFee = pctFee.add(flatFee, MC)
+        val net = gross.subtract(totalFee, MC)
+        return ExchangeBudgetResult(
+            rmbQuantity = rmb,
+            profitPerUnit = spread.setScale(4, RoundingMode.HALF_UP),
+            grossProfit = gross.setScale(2, RoundingMode.HALF_UP),
+            feeDeduction = totalFee.setScale(2, RoundingMode.HALF_UP),
+            netProfit = net.setScale(2, RoundingMode.HALF_UP)
+        )
+    }
+
     data class EmiResult(
         val monthlyEmi: BigDecimal,
         val totalPayment: BigDecimal,
